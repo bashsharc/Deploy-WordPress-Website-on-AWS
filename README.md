@@ -23,7 +23,10 @@ simultaneously, all reading and writing to the same shared file system and datab
 ---
 
 ## 🏗️ Architecture
-<img width="616" height="384" alt="image" src="https://github.com/user-attachments/assets/595619f4-e510-4f2a-b94e-4016b45b5ba4" />
+
+<div align="center">
+  <img width="616" height="384" alt="image" src="https://github.com/user-attachments/assets/595619f4-e510-4f2a-b94e-4016b45b5ba4" />
+</div>
 
 
 - **Internet Gateway** is the front door of the entire VPC — without it, no traffic 
@@ -92,14 +95,17 @@ security groups would block the connection.
 
 ## 📸 Screenshots
 
-| | |
-|---|---|
-| ![Live site](screenshots/live-site.png) | ![VPC Resource Map](screenshots/vpc-resource-map.png) |
-| *Live WordPress site over HTTPS* | *VPC architecture (auto-generated resource map)* |
-| ![ASG Healthy Targets](screenshots/asg-targets.png) | ![ACM Certificate Issued](screenshots/acm-issued.png) |
-| *Auto Scaling Group — healthy targets* | *ACM Certificate — Issued status* |
+### VPC Architecture
+![VPC Architecture](screenshots/vpc-architecture.png)
 
-*(Additional screenshots available in the `/screenshots` folder)*
+### Auto Scaling Group — Healthy Instances
+![Auto Scaling Group](screenshots/asg-healthy.png)
+
+### ACM Certificate — Issued
+![ACM Certificate](screenshots/acm-certificate.png)
+
+### Route 53 DNS Record
+![Route 53](screenshots/route53-record.png)
 
 ---
 
