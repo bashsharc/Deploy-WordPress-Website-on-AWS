@@ -1,83 +1,131 @@
-# AWS WordPress Website Deployment Project
+# WordPress on AWS — Highly Available, Multi-Tier Architecture
 
-## Project Overview:
+A production-style deployment of a self-hosted WordPress site on AWS, built to mirror 
+real-world infrastructure rather than a single-server setup. The architecture spans 
+multiple Availability Zones with a three-tier VPC, shared file storage, load balancing, 
+auto scaling, and a custom domain secured with HTTPS.
 
-In this DevOps project, I successfully deployed a WordPress website on AWS using a comprehensive three-tier architecture. The project aimed at achieving high availability, fault tolerance, and seamless scalability for the WordPress site.
+---
 
-## Architecture Highlights:
+## 📋 Overview
 
-### Three-Tier VPC Setup:
+This project hosts a fully functional WordPress site using a layered, fault-tolerant 
+AWS architecture. Rather than running WordPress on a single EC2 instance, the app tier 
+is horizontally scalable — any number of identical web servers can serve traffic 
+simultaneously, all reading and writing to the same shared file system and database.
 
-![image](https://github.com/bconway1906/Deploy-WordPress-Website-on-AWS/assets/148906255/e962d3eb-0dba-450b-8ee9-b15e54d4766f)
+**Key design goals:**
+- No single point of failure across compute, network, or storage
+- Web servers never directly exposed to the internet
+- Automatic scaling based on demand
+- Free, auto-renewing SSL via AWS Certificate Manager
 
-1. **Tiers Configuration:**
-   - Created a three-tier AWS VPC with public and private subnets spanning 2 availability zones.
-   - Tier 1: Public subnet housing Nat Gateway, Load Balancer, and Bastion Host.
-   - Tier 2: Private subnet for hosting EC2 webservers.
-   - Tier 3: Another private subnet dedicated to the database.
+---
 
-2. **VPC Setup:**
-   - Created the initial VPC named "Dev VPC."
+## 🏗️ Architecture
+<img width="616" height="384" alt="image" src="https://github.com/user-attachments/assets/595619f4-e510-4f2a-b94e-4016b45b5ba4" />
 
-3. **Networking Setup:**
-   - Enabled DNS Hostnames within the VPC.
-   - Established an Internet Gateway for seamless communication with the internet.
 
-4. **Subnet Organization:**
-   - Configured public subnets in 2 Availability Zones with Auto Assign IP settings.
-   - Created a public route table associating it with public subnets.
+- **Internet Gateway** is the front door of the entire VPC — without it, no traffic 
+  from the internet can reach the ALB, and the Bastion Host couldn't be SSH'd into. 
+  It handles both inbound traffic (visitors reaching the site) and outbound traffic 
+  (Bastion Host reaching the internet). It is attached to the VPC and referenced in 
+  the public route table as the target for `0.0.0.0/0`.
+- **EFS** lets every EC2 instance — including new ones the Auto Scaling Group launches — 
+  share the exact same WordPress files (themes, plugins, uploads) with zero manual sync.
+- **RDS** is fully managed, removing the need to maintain a self-hosted MySQL server.
+- **Private subnets** keep both the app and data tiers unreachable from the internet — 
+  all traffic must pass through the ALB.
+- **NAT Gateways** let private instances reach the internet (for package installs/updates) 
+  without being reachable *from* the internet.
 
-5. **Private Subnets:**
-   - Established 4 private subnets (2 for webservers, 2 for the database) associated with the main private route table.
+---
 
-6. **NAT Gateway:**
-   - Deployed NAT Gateways in Public AZ1 and AZ2 for internet access in private subnets.
-   - Allocated elastic IP addresses to the NAT Gateways.
+## 🛠️ Tools & Technologies
 
-7. **Security Groups:**
-   - Configured security groups acting as a firewall for instances.
+| Category | Tools |
+|---|---|
+| **Compute** | Amazon EC2, Auto Scaling Groups, Launch Templates |
+| **Networking** | Amazon VPC, NAT Gateway, Internet Gateway, Route Tables, Security Groups |
+| **Load Balancing** | Application Load Balancer, Target Groups |
+| **Storage** | Amazon EFS (shared file system), Amazon RDS (MySQL) |
+| **DNS & SSL** | Amazon Route 53, AWS Certificate Manager (ACM) |
+| **Monitoring** | Amazon CloudWatch, Amazon SNS |
+| **Application** | WordPress, Apache HTTP Server, PHP, MySQL |
+| **Scripting** | Bash (EC2 User Data automation) |
 
-8. **Database Security Group:**
-   - Opened port 3306 (MySQL/Aurora) with the source as the Webserver Security Group.
+---
 
-9. **Elastic File System (EFS):**
-   - Created EFS with mount targets in each AZ for webservers to connect.
+## 🔐 Security Design
 
-## WordPress Deployment Steps:
+Traffic flows through a strict, layered chain — each tier only trusts the tier directly 
+above it:
 
-10. **EC2 Instance Setup:**
-    - Launched an EC2 instance in the public subnet AZ1 with SSH, ALB, and Webserver security groups.
+| Security Group | Open Ports | Allowed Source |
+|---|---|---|
+| ALB SG | 80, 443 | Anywhere (0.0.0.0/0) |
+| SSH SG | 22 | My IP only |
+| Webserver SG | 80, 443, 22 | ALB SG / SSH SG |
+| Database SG | 3306 | Webserver SG only |
+| EFS SG | 2049 (NFS), 22 | Webserver SG / SSH SG |
 
-11. **WordPress Installation:**
-    - Execute scripts for updating mount information of EFS.
+This means the web servers, database, and shared file system are **never directly 
+reachable from the internet** — even if someone discovered a private IP address, the 
+security groups would block the connection.
 
-   <img width="242" alt="image" src="https://github.com/bconway1906/Deploy-WordPress-Website-on-AWS/assets/148906255/516f9c94-b249-4ee1-8197-4771aa426ab3">
+---
 
-12. **ALB Configuration:**
-    - Created an ALB to route traffic to EC2 instances in private subnets.
-    - Launched instances in private app subnets with user data script for webserver configuration.
+## 🚀 Key Features Implemented
 
-13. **HTTPS Listener Setup:**
-    - Configured an HTTPS listener for the ALB.
-    - Enabled redirection of HTTP traffic to HTTPS.
+- ✅ Custom three-tier VPC across two Availability Zones
+- ✅ Highly available NAT Gateways for outbound-only private subnet internet access
+- ✅ Shared application storage via EFS — any EC2 instance can serve the same WordPress files
+- ✅ Managed MySQL database via Amazon RDS
+- ✅ Application Load Balancer distributing traffic across multiple AZs
+- ✅ Auto Scaling Group with CPU-based scaling policies and SNS notifications
+- ✅ Custom domain registered and managed through Route 53
+- ✅ Free SSL/TLS certificate via ACM with automatic DNS validation and renewal
+- ✅ HTTP → HTTPS redirect enforced at the load balancer
+- ✅ WordPress configured to correctly detect SSL termination at the ALB
 
-14. **WordPress SSL Configuration:**
-    - Modified WPconfig file on EC2 instances to handle SSL settings.
+---
 
-15. **Domain Registration and SSL Certificate:**
-    - Registered a domain in Route 53.
-    - Obtained an SSL certificate from AWS Certificate Manager.
+## 📸 Screenshots
 
-16. **Bastion Host Setup:**
-    - Launched a public subnet EC2 instance for SSH access to the EC2 instance in the private subnet.
+| | |
+|---|---|
+| ![Live site](screenshots/live-site.png) | ![VPC Resource Map](screenshots/vpc-resource-map.png) |
+| *Live WordPress site over HTTPS* | *VPC architecture (auto-generated resource map)* |
+| ![ASG Healthy Targets](screenshots/asg-targets.png) | ![ACM Certificate Issued](screenshots/acm-issued.png) |
+| *Auto Scaling Group — healthy targets* | *ACM Certificate — Issued status* |
 
-17. **SSH into Private Instance:**
-    - Executed SSH commands to access the EC2 instance in the private subnet through the Bastion host.
+*(Additional screenshots available in the `/screenshots` folder)*
 
-18. **Auto Scaling Group (ASG):**
-    - Created an ASG with a launch template for dynamic management of EC2 instances in the private app subnet.
+---
 
-## Project Conclusion:
+## 💡 Key Lessons Learned
 
-This project achieved the successful deployment of a WordPress website on AWS, incorporating best practices for infrastructure design and ensuring reliability, security, and scalability. The GitHub repository contains detailed diagrams and scripts for reference.
+- A **three-tier VPC** is the industry-standard pattern for separating public-facing, 
+  application, and data layers — each with its own access controls.
+- **NAT Gateways** solve a key networking challenge: letting private servers reach the 
+  internet for updates while remaining invisible to inbound traffic.
+- **Security Groups chain together** — the Webserver SG only trusts the ALB SG, so even 
+  if someone finds a server's IP, they can't reach it directly.
+- **EFS enables true horizontal scaling** — without shared storage, every new Auto 
+  Scaling instance would start with an empty `/var/www/html` and no WordPress installation.
+- **Auto Scaling + Load Balancing work as a team**: the load balancer spreads traffic, 
+  and the ASG keeps the right number of healthy servers running — no manual intervention.
+- **SSL termination at the load balancer** requires explicitly telling WordPress (via 
+  the `HTTP_X_FORWARDED_PROTO` header) that the original request was HTTPS, since the 
+  ALB-to-EC2 connection itself is plain HTTP internally.
+- Setting up HTTPS is non-negotiable for production — AWS Certificate Manager makes it 
+  free and straightforward with DNS validation.
 
+---
+
+## 🧹 Cost Management
+
+This project intentionally uses resources that can rack up hourly charges if left 
+running (NAT Gateways, ALB, RDS, EFS, and EC2 instances). After demoing or testing, all 
+resources are torn down in dependency order — ASG → Launch Template → ALB/Target Group → 
+RDS → EFS → NAT Gateways → Elastic IPs → Security Groups → VPC.
